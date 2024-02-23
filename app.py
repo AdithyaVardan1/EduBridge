@@ -11,6 +11,7 @@ device = torch.device("cpu")
 model = AutoModelForCausalLM.from_pretrained("microsoft/phi-2", torch_dtype=torch.float32, trust_remote_code=True).to(device)
 tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2", trust_remote_code=True)
 
+
 @app.route('/generate-text', methods=['POST'])
 def generate_text():
     try:
