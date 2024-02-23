@@ -1,78 +1,157 @@
-import pandas as pd
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-from torch.utils.data import Dataset, DataLoader
-from transformers import AdamW
-from tqdm import tqdm
+# %%
+!pip install huggingface_hub
+!pip install transformers
+!pip install accelerate  peft  bitsandbytes  trl
+!pip install sentencepiece
+
+# %%
+from huggingface_hub import login
+
+login()
+
+
+# %%
 import torch
 
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 
-MODEL_NAME = 'LLaMA-7B'  
+# %%
+model_id = "meta-llama/Llama-2-7b-chat-hf"
 
-# Load and preprocess the dataset
-df = pd.read_csv('questions_and_answers.csv')
-df.dropna(subset=['Question', 'Answer'], inplace=True)  
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_use_double_quant=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_compute_dtype=torch.bfloat16
+)
 
-# Define a custom dataset class
-class QADataset(Dataset):
-    def __init__(self, tokenizer, questions, answers):
-        self.tokenizer = tokenizer
-        self.questions = questions
-        self.answers = answers
+# %%
+tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-chat-hf", trust_remote_code=True)
 
-    def __len__(self):
-        return len(self.questions)
+model = AutoModelForCausalLM.from_pretrained(
+    model_id, quantization_config=bnb_config, device_map={"": 0})
 
-    def __getitem__(self, idx):
-        question = self.questions[idx]
-        answer = self.answers[idx]
-        inputs = self.tokenizer.encode_plus(
-            question,
-            answer,
-            add_special_tokens=True,
-            max_length=512,
-            padding='max_length',
-            truncation=True,
-            return_tensors='pt'
-        )
-        input_ids = inputs.input_ids.squeeze()
-        attention_mask = inputs.attention_mask.squeeze()
-        return {
-            'input_ids': input_ids,
-            'attention_mask': attention_mask
-        }
+# %%
+from peft import prepare_model_for_kbit_training
+model.gradient_checkpointing_enable()
+model = prepare_model_for_kbit_training(model)
 
-# Initialize tokenizer and dataset
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-dataset = QADataset(tokenizer, list(df['Question']), list(df['Answer']))
+# %%
+def print_trainable_parameters(model):
+    """
 
-# Create data loader
-loader = DataLoader(dataset, batch_size=4, shuffle=True)
+    Prints the number of trainable parameters in the model.
 
-# Load model
-model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
+    """
 
-# Move model to device
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-model.to(device)
+    trainable_params = 0
+    all_param = 0
+    for _, param in model.named_parameters():
+        all_param += param.numel()
+        if param.requires_grad:
+            trainable_params += param.numel()
 
-# Initialize optimizer
-optimizer = AdamW(model.parameters(), lr=5e-5)
+    print(f"trainable params: {trainable_params} | | all params: {all_param} | | trainable % : {100 * trainable_params / all_param}")
 
-# Fine-tuning loop
-model.train()
-for epoch in range(1):  # Replace with the number of epochs you want
-    loop = tqdm(loader, leave=True)
-    for batch in loop:
-        optimizer.zero_grad()
-        input_ids = batch['input_ids'].to(device)
-        attention_mask = batch['attention_mask'].to(device)
-        outputs = model(input_ids=input_ids, attention_mask=attention_mask)
-        loss = outputs.loss
-        loss.backward()
-        optimizer.step()
-        
-        loop.set_description(f'Epoch {epoch}')
-        loop.set_postfix(loss=loss.item())
 
-# Save the fine-tuned model
-model.save_pretrained('D:\\Bolt Vit Vellore\\finetune.py')
+# %%
+from peft import LoraConfig, get_peft_model
+config = LoraConfig(
+    r=8,
+    lora_alpha=32,
+    target_modules=["q_proj", "v_proj"],
+    lora_dropout=0.05,
+    bias="none",
+    task_type="CAUSAL_LM"
+)
+
+# %%
+model = get_peft_model(model, config)
+
+print_trainable_parameters(model)
+
+# %%
+import transformers
+from trl import SFTTrainer
+
+# needed for llama tokenizer
+tokenizer.pad_token = tokenizer.eos_token
+
+
+trainer = SFTTrainer(
+  model=model,
+  train_dataset=dataset,
+  dataset_text_field="text",
+  args=transformers.TrainingArguments(
+  per_device_train_batch_size=1,
+  gradient_accumulation_steps=4,
+  warmup_steps=2,
+  max_steps=10,          #change accordingly
+  learning_rate=2e-4,
+  fp16=True,
+  logging_steps=1,
+  output_dir="outputs",
+  optim="paged_adamw_8bit"
+),
+data_collator=transformers.DataCollatorForLanguageModeling(
+    tokenizer, mlm=False),
+
+)
+
+model.config.use_cache=False 
+
+# %%
+trainer.train()
+
+# %%
+from transformers import pipeline
+prompt = """### Human: Write a short story about two students trapped in a haunted house in Montana. ### Assistant:"""
+
+
+pipe = pipeline(
+            "text-generation",
+            model=model,
+            tokenizer=tokenizer,
+            torch_dtype=torch.bfloat16,
+            trust_remote_code=True,
+            device_map="auto",
+    )
+
+sequences = pipe(
+            prompt,
+            max_length=1000,
+            do_sample=True,
+            top_k=10,
+            num_return_sequences=1,
+            eos_token_id=tokenizer.eos_token_id,
+            pad_token_id=tokenizer.eos_token_id
+    )
+
+for seq in sequences:
+    print(seq['generated_text'])
+
+# %%
+from transformers import AutoTokenizer
+import transformers
+import torch
+
+pipeline = transformers.pipeline(
+    "text-generation",
+    model=model,
+    tokenizer=tokenizer,
+    torch_dtype=torch.float16,
+    device_map="auto",
+)
+sequences = pipeline(
+    'I liked batman. Do you have any recommendations of other shows or movie I might like?\n',
+    do_sample=True,
+    top_k=10,
+    num_return_sequences=1,
+    eos_token_id=tokenizer.eos_token_id,
+    pad_token_id=tokenizer.eos_token_id,
+    max_length=500,
+)
+for seq in sequences:
+    print(f"Result: {seq['generated_text']}")
+
+
