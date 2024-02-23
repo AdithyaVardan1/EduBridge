@@ -2,7 +2,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # Ensure everything runs on CPU, especially in a CPU-only environment
-device = torch.device("auto")
+device = torch.device("cpu")
 
 # Load model and tokenizer, explicitly setting to use CPU-compatible data types
 model = AutoModelForCausalLM.from_pretrained("microsoft/phi-2", torch_dtype=torch.float32, trust_remote_code=True).to(device)
