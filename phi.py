@@ -8,8 +8,11 @@ device = torch.device("cpu")
 model = AutoModelForCausalLM.from_pretrained("microsoft/phi-2", torch_dtype=torch.float32, trust_remote_code=True).to(device)
 tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2", trust_remote_code=True)
 
+# Take prompt as input from the user
+user_prompt = input("Enter your prompt: ")
+
 # Prepare inputs with tokenizer
-inputs = tokenizer('''Explain closest pair of points approach.''', return_tensors="pt", return_attention_mask=False)
+inputs = tokenizer(user_prompt, return_tensors="pt", return_attention_mask=False)
 
 # Move input tensors to the same device as the model (CPU in this case)
 inputs = inputs.to(device)
