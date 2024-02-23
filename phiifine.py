@@ -1,5 +1,5 @@
 from transformers import AutoTokenizer
-import datasets
+from datasets import load_dataset
 
 tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
 
