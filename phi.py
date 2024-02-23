@@ -20,7 +20,7 @@ inputs = {k: v.to(device) for k, v in inputs.items()}
 
 outputs = model.generate(
     **inputs,
-    max_length=500,
+    max_length=200,
     do_sample=True,
     top_p=0.92,
     temperature=0.85
