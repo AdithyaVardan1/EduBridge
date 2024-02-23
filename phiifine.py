@@ -2,7 +2,7 @@ from transformers import AutoTokenizer
 from datasets import load_dataset
 
 tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
-
+max_length = 200
 def tokenize_function(examples):
     return tokenizer(examples["text"], padding="max_length", truncation=True)
 
