@@ -19,7 +19,7 @@ inputs = inputs.to(device)
 
 outputs = model.generate(
     **inputs,
-    max_length=200,
+    max_length=500,
     do_sample=True,  # Enable sampling to introduce randomness
     top_p=0.92,      # Use nucleus sampling
     temperature=0.85 # Adjust temperature to control randomness
