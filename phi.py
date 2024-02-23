@@ -14,8 +14,13 @@ inputs = tokenizer('''Explain closest pair of points approach.''', return_tensor
 # Move input tensors to the same device as the model (CPU in this case)
 inputs = inputs.to(device)
 
-# Generate outputs
-outputs = model.generate(**inputs, max_length=200)
+outputs = model.generate(
+    **inputs,
+    max_length=200,
+    do_sample=True,  # Enable sampling to introduce randomness
+    top_p=0.92,      # Use nucleus sampling
+    temperature=0.85 # Adjust temperature to control randomness
+)
 
 # Decode and print the output text
 text = tokenizer.batch_decode(outputs, skip_special_tokens=True)[0]
