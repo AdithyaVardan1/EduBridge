@@ -6,7 +6,7 @@ tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
 def tokenize_function(examples):
     return tokenizer(examples["text"], padding="max_length", truncation=True)
 
-# Assuming you have a 'datasets' object loaded from the 'datasets' library or any other source
+dataset = load_dataset("prsdm/MedQuad-phi2-1k")
 tokenized_datasets = datasets.map(tokenize_function, batched=True)
 from transformers import AutoModelForSequenceClassification
 
