@@ -7,7 +7,7 @@ def tokenize_function(examples):
     return tokenizer(examples["text"], padding="max_length", truncation=True)
 
 dataset = load_dataset("prsdm/MedQuad-phi2-1k")
-tokenized_datasets = datasets.map(tokenize_function, batched=True)
+tokenized_datasets = dataset.map(tokenize_function, batched=True)
 from transformers import AutoModelForSequenceClassification
 
 num_labels = 2  # Adjust based on your task
