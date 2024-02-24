@@ -3,7 +3,7 @@ import intel_extension_for_pytorch as ipex
 import time
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-ipex.enable_onednn_fusion()  #operator fusion for optmisation
+ipex.enable_onednn_fusion(True)  #operator fusion for optmisation
 
 device = torch.device("cpu")
 start_time = time.time()
