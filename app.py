@@ -1,36 +1,46 @@
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
 from flask import Flask, request, jsonify
+import torch
+import intel_extension_for_pytorch as ipex
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-# Load LLM model and tokenizer (replace with your chosen LLM)
-model_name = "rhysjones/phi-2-orange"
-device = torch.device("cpu")  # Assuming no GPU
-model = AutoModelForCausalLM.from_pretrained(model_name).to(device)
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-
-# Create Flask app
 app = Flask(__name__)
 
-# API endpoint to receive and respond to messages
-@app.route("/message", methods=["POST"])
-def handle_message():
-    # Retrieve message from request
-    message = request.json["message"]
+# Initialize the model and tokenizer when the app starts
+model = AutoModelForCausalLM.from_pretrained("rhysjones/phi-2-orange")
+tokenizer = AutoTokenizer.from_pretrained("rhysjones/phi-2-orange")
+model = ipex.llm.optimize(model, dtype=torch.bfloat16)  # Apply BF16 optimization
+model = model.eval()
+model.to(torch.device("cpu"))
 
-    # Generate response using the LLM
-    inputs = tokenizer(message, return_tensors="pt", return_attention_mask=False)
-    inputs = {k: v.to(device) for k, v in inputs.items()}
-    outputs = model.generate(**inputs, max_length=200, do_sample=True, top_p=0.92, temperature=0.7)
-
-    # Decode and truncate response (adjust truncation logic as needed)
+@app.route('/generate', methods=['POST'])
+def generate_text():
+    data = request.get_json()
+    user_prompt = data.get("prompt", "")
+    
+    # Ensure the prompt is not empty
+    if not user_prompt:
+        return jsonify({"error": "Empty prompt provided."}), 400
+    
+    prompt = f"user: {user_prompt}\n\nassistant"
+    inputs = tokenizer(prompt, return_tensors="pt", return_attention_mask=False).to(torch.device("cpu"))
+    outputs = model.generate(
+        **inputs,
+        max_length=200,
+        do_sample=True,
+        top_p=0.92,
+        temperature=0.7
+    )
+    
     text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    truncated_text = text[:200]  # Truncate to 200 characters initially
     stop_indices = [i for i, char in enumerate(text) if char == "."]
-    if len(stop_indices) > 2:
-        truncated_text = text[:stop_indices[2] + 1]  # Truncate at the third full stop if possible
-
-    # Return the response
+    
+    # Handle case with fewer than 3 full stops
+    if len(stop_indices) >= 3:
+        truncated_text = text[:stop_indices[2] + 1]
+    else:
+        truncated_text = text
+    
     return jsonify({"response": truncated_text})
 
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0")  # Bind to all interfaces for public access
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
