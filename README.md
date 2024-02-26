@@ -8,7 +8,7 @@ In an effort to democratize access to education and leverage the power of AI for
 
 ## Features
 
-- Extensive use of IDC(intel developer cloud) and the intel OneAPI - AI Analytics tool kit(Intel distribtuion for pytorch(IPEX)) for increasing efficiency and optimisation.
+- Extensive use of IDC(intel developer cloud - Small VM - Intel® Xeon 4th Gen ® Scalable processor) and the intel OneAPI - AI Analytics tool kit(Intel distribtuion for pytorch(IPEX)) for increasing efficiency and optimisation.
 - *Image to Text via SMS*: Users can capture images of their educational materials, and our app will extract the text from these images.
 - *SMS-Based Queries*: Once the text is extracted, it's sent as an SMS to our backend system. This enables students to ask questions based on the text extracted from their educational materials or they can directly aproach through SMS.
 - *LLM Integration (Phi2)*: Queries received via SMS are processed by our LLM, Phi2, which is specifically trained to provide educational assistance and answers to a wide array of subjects.
