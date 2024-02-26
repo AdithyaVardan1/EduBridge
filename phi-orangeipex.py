@@ -1,5 +1,6 @@
 import torch
-import intel-extension-for-pytorch as ipex
+import intel_pytorch_extension as ipex
+
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 ipex.enable_auto_mixed_precision(mixed_dtype=torch.bfloat16)  # Step 2: Enable BF16 auto-mixed-precision
