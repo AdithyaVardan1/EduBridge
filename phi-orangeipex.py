@@ -11,8 +11,8 @@ model = ipex.llm.optimize(model, dtype=torch.bfloat16)  # Apply BF16 optimizatio
 model = model.eval()
 
 # Device handling (ensure IPEX device is available)
-device = ipex.DEVICE if ipex.DEVICE else torch.device("cpu")  # Use IPEX device if available, otherwise CPU
-model = model.to(device)  # Move model to IPEX device
+device = torch.device("cpu")
+model = model.to(device)
 
 # User prompt
 user_prompt = input("Enter your question: ")
