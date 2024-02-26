@@ -10,18 +10,18 @@ tokenizer = AutoTokenizer.from_pretrained("rhysjones/phi-2-orange")
 model = ipex.llm.optimize(model, dtype=torch.bfloat16)  # Apply BF16 optimization
 model = model.eval()
 
-# Device handling (ensure IPEX device is available)
+# Device handling (set to CPU explicitly)
 device = torch.device("cpu")
 model = model.to(device)
 
 # User prompt
 user_prompt = input("Enter your question: ")
 
-# Construct simplified ChatML prompt
-prompt = f"<|im_start|>user\n{user_prompt}\n<|im_end|>\n<|im_start|>assistant"
+# Construct simplified ChatML prompt with consistent user prefix
+prompt = f"<|im_start|>user: {user_prompt}\n<|im_end|>\n<|im_start|>assistant"
 
 # Generate response with truncated max length and lower temperature
-inputs = tokenizer(prompt, return_tensors="pt", return_attention_mask=False).to(device)  # Move inputs to device
+inputs = tokenizer(prompt, return_tensors="pt", return_attention_mask=False).to(device)
 outputs = model.generate(
     **inputs,
     max_length=200,
@@ -35,7 +35,10 @@ text = tokenizer.decode(outputs[0], skip_special_tokens=True)
 stop_indices = [i for i, char in enumerate(text) if char == "."]
 truncated_text = text[:stop_indices[2] + 1]
 
-# Remove redundant system prompts
-truncated_text = truncated_text.split("<|im_end|>")[1].strip()
+# Handle potential empty lists when splitting
+if len(truncated_text.split("<|im_end|>")) > 1:
+    truncated_text = truncated_text.split("<|im_end|>")[1].strip()
+else:
+    print("The expected prompt format was not found.")
 
 print(truncated_text)
