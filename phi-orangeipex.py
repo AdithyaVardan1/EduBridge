@@ -1,15 +1,18 @@
 import torch
 import intel_extension_for_pytorch as ipex
-
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-ipex.enable_auto_mixed_precision(mixed_dtype=torch.bfloat16)  # Step 2: Enable BF16 auto-mixed-precision
-
-device = ipex.DEVICE  # Use IPEX device
-
 # Load model and tokenizer
-model = AutoModelForCausalLM.from_pretrained("rhysjones/phi-2-orange").to(device)
+model = AutoModelForCausalLM.from_pretrained("rhysjones/phi-2-orange")
 tokenizer = AutoTokenizer.from_pretrained("rhysjones/phi-2-orange")
+
+# Optimize with IPEX and set model to evaluation mode
+model = ipex.llm.optimize(model, dtype=torch.bfloat16)  # Apply BF16 optimization
+model = model.eval()
+
+# Device handling (ensure IPEX device is available)
+device = ipex.DEVICE if ipex.DEVICE else torch.device("cpu")  # Use IPEX device if available, otherwise CPU
+model = model.to(device)  # Move model to IPEX device
 
 # User prompt
 user_prompt = input("Enter your question: ")
@@ -18,14 +21,13 @@ user_prompt = input("Enter your question: ")
 prompt = f"<|im_start|>user\n{user_prompt}\n<|im_end|>\n<|im_start|>assistant"
 
 # Generate response with truncated max length and lower temperature
-inputs = tokenizer(prompt, return_tensors="pt", return_attention_mask=False)
-inputs = {k: v.to(device) for k, v in inputs.items()}  # Move inputs to IPEX device
+inputs = tokenizer(prompt, return_tensors="pt", return_attention_mask=False).to(device)  # Move inputs to device
 outputs = model.generate(
-  **inputs,
-  max_length=200,
-  do_sample=True,
-  top_p=0.92,
-  temperature=0.7
+    **inputs,
+    max_length=200,
+    do_sample=True,
+    top_p=0.92,
+    temperature=0.7
 )
 
 # Decode and truncate based on full stops
