@@ -24,7 +24,7 @@ prompt = f"<|im_start|>user: {user_prompt}\n<|im_end|>\n<|im_start|>assistant"
 inputs = tokenizer(prompt, return_tensors="pt", return_attention_mask=False).to(device)
 outputs = model.generate(
     **inputs,
-    max_length=200,
+    max_length=400,
     do_sample=True,
     top_p=0.92,
     temperature=0.7
